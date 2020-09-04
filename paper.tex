@@ -1,0 +1,145 @@
+\documentclass[runningheads]{llncs}
+
+\usepackage[dvipsnames]{xcolor}
+\usepackage{complexity}
+\usepackage{graphicx}
+\usepackage{rotating}
+\usepackage{tikz}
+\usetikzlibrary{trees, positioning, calc, shapes}
+\usepackage{fancyvrb}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{cleveref}
+\usepackage{nicefrac}
+
+% \usepackage{showframe}
+
+% cref style
+\crefname{figure}{Figure}{Figures}
+\Crefname{figure}{Figure}{Figures}
+\crefname{section}{Section}{Sections}
+\Crefname{section}{Section}{Sections}
+
+\title{VeriPB: The Easy Way to Make Your Combinatorial Search Algorithm Trustworthy}
+\titlerunning{VeriPB: Make Your Combinatorial Search Algorithm Trustworthy}
+
+\author{
+    Stephan Gocht\inst{1,2}%\orcidID{0000-0002-5459-3134}
+    \and Ciaran McCreesh\inst{3}%\orcidID{0000-0002-6106-4871}
+    \and Jakob Nordstr\"{o}m\inst{2,1}%\orcidID{0000-0002-2700-4285}
+}
+
+\institute{
+    Lund University, Lund, Sweden \and
+    University of Copenhagen, Copenhagen, Denmark \and
+    University of Glasgow, Glasgow, Scotland \\
+\email{stephan.gocht@cs.lth.se, ciaran.mccreesh@glasgow.ac.uk, jn@di.ku.dk}}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+    We give an overview of the VeriPB tool, which can be used to make certifying solvers for
+    combinatorial optimisation problems.
+\end{abstract}
+
+The VeriPB tool\footnote{\url{https://github.com/StephanGocht/VeriPB}} provides an easy way of
+making combinatorial search algorithms \emph{certifying}. Certifying solvers, which output a proof
+of correctness alongside a claimed solution, are now standard in the Boolean satisfiability (SAT)
+community, but have not seen much uptake elsewhere. The key problem with the SAT approach to proof
+logging is that their chosen proof formats, CNF and DRAT
+\cite{DBLP:conf/sat/WetzlerHH14}, make it
+extremely impractical to describe the more sophisticated reasoning used in constraint programming
+propagators \cite{DBLP:conf/aaai/ElffersGMN20} and in other combinatorial search algorithms
+\cite{GochtMMNPT20,DBLP:conf/ijcai/GochtMN20}. In contrast, the psuedo-Boolean models and
+cutting planes proof system used by VeriPB makes it easy to justify combinatorial arguments. This
+tool demonstration gives a solver author's perspective of using VeriPB to make an algorithm
+implementation trustworthy.
+
+When a solver claims than an instance of an NP-complete problem is unsatisfiable, it is hard to be
+confident that the solver is correct. Similarly, for optimisation problems, it is hard to be sure
+that a claimed solution is indeed optimal, and for enumeration problems, it is hard to be sure that
+no solutions have been missed. The VeriPB tool handles all of these scenarios through \emph{proof
+logging}, which is a particular form of \emph{certifying} \cite{DBLP:journals/csr/McConnellMNS11}.
+The key steps involved are:
+
+\begin{itemize}
+    \item The problem is expressed as a pseudo-Boolean (PB) problem instance, encoded in the
+        standard OPB file format \cite{opbformat}.
+        This can either be done by the solver, or in the case of solver competitions, can be
+        provided by the competition organiser. A PB instance is simply an integer linear program
+        where all the variables have domain $\{ 0, 1 \}$; conveniently, CNF clauses can be
+        represented directly as PB constraints.
+    \item As it executes, the solver outputs a machine-readable proof log which records the steps it
+        took to reach its solution. This proof log consists of \emph{reverse unit propagation} (RUP)
+        steps \cite{DBLP:conf/aaai/ElffersGMN20,DBLP:conf/isaim/Gelder08} which record every time the solver
+        backtracks, together with additional manual constraint derivations using \emph{cutting
+        planes} proof system rules \cite{DBLP:journals/dam/CookCT87} to justify any
+        complex constraint propagation or bounds; these manual derivations are used to ensure that
+        all inferences performed by the solver can be reflected inside the verifier just through using
+        unit propagation. For satisfiable, enumeration, and optimisation
+        instances, this log also records solutions or new incumbents as they are found.
+    \item A proof verifier such as VeriPB takes the OPB file and the proof log, and checks whether
+        the proof is valid. A proof verifier is a very simple piece of software when compared to a
+        typical solver, and so it is much easier to trust. In particular, the proof verifier can
+        only carry out very simple inference steps and only as directed, and does not perform any search.
+\end{itemize}
+
+From the point of view of end users and solver authors, this approach has a number of advantages
+compared to full formal verification \cite{Dubois20}, and compared to earlier proof logging approaches
+\cite{Stuckey19,DBLP:conf/aaai/VekslerS10,DBLP:conf/sat/WetzlerHH14}, which
+together mean we now believe it is practical to pursue proof logging as the new ``socially
+acceptable standard'' for solver implementers.
+
+Firstly, proof logs can be stored, and audited at a later date. It is even reasonably simple to
+implement an independent verifier, because the verifier does not need to understand constraint
+propagation or bounds. For example, because all-different reasoning can be justified compactly using
+cutting planes steps, the verifier can verify Hall set reasoning \cite{DBLP:conf/aaai/ElffersGMN20},
+without knowing what a Hall set is or how all-different propagation works. Similarly, the wide
+variety of bound and inference functions used in modern subgraph-finding algorithms
+\cite{GochtMMNPT20,DBLP:conf/ijcai/GochtMN20} can all be verified without the verifier having any
+knowledge of graphs.
+
+Secondly, this form of proof logging is simple to implement inside solvers. For all of the examples
+we have tried so far \cite{DBLP:conf/aaai/ElffersGMN20,GochtMMNPT20,DBLP:conf/ijcai/GochtMN20}, it
+has taken \emph{much} less time (between a factor of two and a factor of many hundreds) to implement
+proof logging in an existing solver than it took to implement the solver itself. This remained true
+even for non-experts. The key to this is RUP~\cite{DBLP:conf/aaai/ElffersGMN20}: for
+search, the solver needs only output the trail
+every time it backtracks. Meanwhile, most constraint propagation steps do not require explicit proof
+derivations: RUP ensures that any inference steps which follow by integer bounds consistency
+\cite{DBLP:conf/ausai/ChoiHLS06} from the provided PB model (which for clausal constraints, is the
+same as unit propagation in SAT, but in general is more powerful) are handled implicitly. For more
+complex propagators or bounds functions, their behaviour must be justified, but this can be done
+without needing to consider the trail; furthermore, it is often easy to reuse justification
+templates between different algorithms and solvers.
+
+Thirdly, the process is at least reasonably efficient. A particular goal has been to ensure that
+proof logs are, in some sense, not longer than the amount of work carried out by a solver. The
+cutting planes proof system appears to be particularly suitable here, being able to express a wide
+range of combinatorial arguments
+\cite{DBLP:conf/aaai/ElffersGMN20,GochtMMNPT20,DBLP:conf/ijcai/GochtMN20}. This would not be the
+case if we used, for example, the resolution proof system, which would require an exponential blowup
+for justifying Hall set reasoning \cite{DBLP:journals/tcs/Haken85,Stuckey19}.
+
+Fourthly, the process certifies \emph{solutions}, rather than proving a solver correct. This is a
+mixed blessing. It does not guarantee that a solver will never produce an incorrect answer, but it
+does ensure that if an incorrect answer is ever produced (or if a correct answer is produced using
+unsound reasoning), then it can be detected. This holds even if the error was due to a compiler bug
+or a hardware fault, or due to the solver relying upon an algorithm whose purported proof of
+correctness turned out to be spurious.
+
+And finally, we have found that proof logging can help with solver development, catching bugs early
+during the implementation process that conventional testing had missed. VeriPB includes a number of
+features to help with this, such as the ability to trace proof logs as they are executed, the
+ability to assert that derived constraints imply expected consequences, and the ability
+to instruct the verifier to accept certain facts on faith, to enable incremental
+development.
+
+\bibliographystyle{splncs04}
+\bibliography{paper}
+
+\end{document}
+
+% vim: set tw=100 spell spelllang=en : %
