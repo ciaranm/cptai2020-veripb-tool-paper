@@ -1,0 +1,28 @@
+\frametitle{In Action\ldots }
+\small\begin{Verbatim}[commandchars=\\\{\},codes={\catcode`$=3\catcode`^=7}]
+\$ \textcolor{uofgcobalt}{./glasgow\textunderscore{}clique\textunderscore{}solver p\textunderscore{}hat500-2.clq}
+nodes = 108217
+clique = 37 59 63 68 71 102 124 133 137 150 160 186 206 222 231 238 269 300 302 308 342 348 349 368 381 383 384 404 412 425 432 445 457 480 489 500
+runtime = 175ms
+\end{Verbatim}
+
+\begin{onlyenv}<2->\small\begin{Verbatim}[commandchars=\\\{\},codes={\catcode`$=3\catcode`^=7}]
+\$ \textcolor{uofgcobalt}{./glasgow\textunderscore{}clique\textunderscore{}solver p\textunderscore{}hat500-2.clq --prove proof}
+runtime = 16,347ms
+\end{Verbatim}
+\end{onlyenv}
+
+\begin{onlyenv}<3->\small\begin{Verbatim}[commandchars=\\\{\},codes={\catcode`$=3\catcode`^=7}]
+\$ \textcolor{uofgcobalt}{ls -lh proof.log proof.opb}
+-rw-rw-r-- 1 ciaranm ciaranm 558M Aug 23 21:43 proof.log
+-rw-rw-r-- 1 ciaranm ciaranm 1.4M Aug 23 21:42 proof.opb
+\end{Verbatim}
+\end{onlyenv}
+
+\begin{onlyenv}<4->\small\begin{Verbatim}[commandchars=\\\{\},codes={\catcode`$=3\catcode`^=7}]
+\$ \textcolor{uofgcobalt}{veripb proof.opb proof.log}
+INFO:root:total time: 428.89s
+maximal used database memory: 0.003 GB
+Verification succeeded.
+\end{Verbatim}
+\end{onlyenv}
